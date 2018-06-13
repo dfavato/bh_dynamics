@@ -1,142 +1,111 @@
-#include <RotaryEncoder.h>
-
-#define WHEEL_DIAMETER 42 //mm
-#define GEAR_RATIO 2.5
-#define MAX_POWER 255
-#define MIN_POWER 100
-#define CONTROL_RIGHT 0
-#define CONTROL_LEFT 1
-
-RotaryEncoder* encoder_l = new RotaryEncoder(ENCODER_L);
-RotaryEncoder* encoder_r = new RotaryEncoder(ENCODER_R);
-int r_power = 255;
-int l_power = 255;
-
-int last_lcd_update;
-
 void control_loop() {
   int button;
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Odometria e controle");
-  last_lcd_update = millis();
-  encoder_l->setPosition(0);
-  encoder_r->setPosition(0);
+  int state;
+  interface.set_lcd_text("Odometria e controle", 1);
+  interface.refresh_lcd(TRUE);
   do {
-    button = get_pressed_button();
-    update_encoder();
+    button = interface.get_pressed_button();
+    control_unit->update_encoders();
     print_encoder();
-    delay(100);
   } while (button == NO_BUTTON);
-  button_release();
-  if(button == SELECT) {
-    lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("Rodando...");
+  interface.button_release();
+  if(button == SELECT_BUTTON) {
+    interface.set_lcd_text("Running...", 1);
+    interface.refresh_lcd(TRUE);
     delay(500);
-    drive_straight(60);
+    control_unit->set_pose(0,0,0);
+    do_line(60);
+    do_triangle(30);
+    do_square(30);
+    do {
+    } while (interface.get_pressed_button() != SELECT_BUTTON);
+    interface.button_release();
   }
-  do {
-  } while (get_pressed_button() != SELECT);
-  button_release();
-}
-
-void update_encoder() {
-  encoder_l->tick();
-  encoder_r->tick();
 }
 
 void print_encoder() {
   char text[50];
   char text2[50];
-  int l_value, r_value;
-  int current_time = millis();
-  if(current_time > last_lcd_update + 500) {
-    l_value = encoder_l->getPosition();
-    r_value = encoder_r->getPosition();
-    sprintf(text, "L:%d R:%d      ", l_value, r_value);
-    sprintf(text2, "ML:%d MR:%d      ", l_power, r_power);
-    lcd.setCursor(0,0);
-    lcd.print(text2);
-    lcd.setCursor(0,1);
-    lcd.print(text);
-    last_lcd_update = current_time;
-  }
+  int theta, x, y;
+  long l_ticks, r_ticks;
+  x = (int)control_unit->get_pose_x();
+  y = (int)control_unit->get_pose_y();
+  theta = (int)control_unit->get_pose_theta();
+  l_ticks = control_unit->get_encoder_position(control_unit->LEFT);
+  r_ticks = control_unit->get_encoder_position(control_unit->RIGHT);
+  sprintf(text, "x:%d y:%d t:%d", x, y, theta);
+  sprintf(text2, "L:%d R:%d", l_ticks, r_ticks);
+  interface.set_lcd_text(text, text2);
+  interface.refresh_lcd();
 }
 
-void drive_straight(int cm) {
-  int r_value, l_value;
-  int target = encoder_target(cm);
-
-  encoder_l->setPosition(0);
-  encoder_r->setPosition(0);
-  motor_l->setSpeed(l_power);
-  motor_r->setSpeed(r_power);
-  motor_l->run(FORWARD);
-  motor_r->run(FORWARD);
+void do_triangle(int side) {
+  int state;
   do {
-    update_encoder();
+    state = control_unit->drive_straight(side);
     print_encoder();
-    adjust_motor_power();
-    l_value = encoder_l->getPosition();
-    r_value = encoder_r->getPosition();
-    if(l_value >= target) {
-      motor_l->setSpeed(0);
-      motor_l->run(RELEASE);
-    }
-    if(r_value >= target) {
-      motor_r->setSpeed(0);
-      motor_r->run(RELEASE);
-    }
-  } while (l_value < target || r_value < target);
+  } while (state != control_unit->TARGET_REACHED);
+  do {
+    state = control_unit->spin_degrees(control_unit->RIGHT, 90);
+    print_encoder();
+  } while (state != control_unit->TARGET_REACHED);
+  do {
+    state = control_unit->drive_straight(side);
+    print_encoder();
+  } while (state != control_unit->TARGET_REACHED);
+  do {
+    state = control_unit->spin_degrees(control_unit->RIGHT, 135);
+    print_encoder();
+  } while (state != control_unit->TARGET_REACHED);
+  do {
+    state = control_unit->drive_straight((int)((float)1.414213562 * (float)side));
+    print_encoder();
+  } while (state != control_unit->TARGET_REACHED);
+  do {
+    state = control_unit->spin_degrees(control_unit->RIGHT, 135);
+    print_encoder();
+  } while (state != control_unit->TARGET_REACHED);
+}
+
+void do_line(int size) {
+  int state;
+  do {
+    state = control_unit->drive_straight(size);
+    print_encoder();
+  } while (state != control_unit->TARGET_REACHED);
   print_encoder();
-  motor_l->run(RELEASE);
-  motor_r->run(RELEASE);
+  delay(5000);
+  do {
+    state = control_unit->spin_degrees(control_unit->LEFT, 180);
+    print_encoder();
+  } while (state != control_unit->TARGET_REACHED);
+  print_encoder();
+  delay(5000);
+  do {
+    state = control_unit->drive_straight(size);
+    print_encoder();
+  } while (state != control_unit->TARGET_REACHED);
+  print_encoder();
+  delay(5000);
+  do {
+    state = control_unit->spin_degrees(control_unit->LEFT, 180);
+    print_encoder();
+  } while (state != control_unit->TARGET_REACHED);
+  print_encoder();
+  delay(5000);
 }
 
-void adjust_motor_power() {
-  // se turn = TRUE quer dizer que o robo está girando e não indo reto
-  int l_value = encoder_l->getPosition();
-  int r_value = encoder_r->getPosition();
-  int error = l_value - r_value;
-  int kp = 50; // ganho proporcional ao erro
-  if(error > 0) {
-    // esquerda está indo mais rápido
-    if(r_power >= MAX_POWER) {
-      // não é possível acelarar o da direita
-      l_power = l_power + (kp * error);
-    } else {
-      r_power = r_power + (kp * error);
-    }
-  } else if (error < 0) {
-    // direita está mais rápido
-    if(l_power >= MAX_POWER) {
-      //não é possível acelarar o da esquerda
-      r_power = r_power + (kp * error);
-    } else {
-      l_power = l_power + (kp * error);
-    }
-  }
-  if(r_power > MAX_POWER) {
-    r_power = MAX_POWER;
-  } else if (r_power < MIN_POWER) {
-    r_power = MIN_POWER;
-  }
-  if(l_power > MAX_POWER) {
-    l_power = MAX_POWER;
-  } else if (l_power < MIN_POWER) {
-    l_power = MIN_POWER;
-  }
-  motor_r->setSpeed(r_power);
-  motor_l->setSpeed(l_power);
-}
-
-int encoder_target(int cm) {
-  // cm * 10 -> distância em mm
-  // WHEEL_DIAMETER * PI -> circunferência da roda mm
-  // (cm * 10)/(WHEEL_DIAMETER * PI) -> número de voltas que a roda tem fazer
-  // * GEAR_RATION ->  a roda dá uma volta a cada 2.5 voltar do encoder
-  // Uma volta do encoder são 25 ticks
-  return ((cm * 10)/(WHEEL_DIAMETER * PI)) * GEAR_RATIO * 25;
+void do_square(int side) {
+  int state;
+  for(int i = 0; i<4; i++) {
+    do {
+      state = control_unit->drive_straight(side);
+      print_encoder();
+    } while (state != control_unit->TARGET_REACHED);
+    do {
+      state = control_unit->spin_degrees(control_unit->RIGHT, 90);
+      print_encoder();
+    } while (state != control_unit->TARGET_REACHED); 
+  } 
 }
 

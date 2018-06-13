@@ -1,50 +1,52 @@
-#include "Arduino.h"
 #include "LineSensor.h"
+#include <EEPROM.h>
 
-int avg(int *arr, int size) {
-  int sum = 0;
-  for(int i=0; i<size; i++) {
-    sum += arr[i];
-  }
-  return sum/size;
-}
-
-LineSensor::LineSensor(int pin) {
-  this->pin = pin;
-  pinMode(this->pin, INPUT);
-  this->calibrated = 0;
+LineSensor::LineSensor(int pin) : GenericSensor(pin, 0) {
   this->state = this->ON_LINE;
-  this->line_threshold = 900;
-  this->off_line_threshold = 700;
+  this->persistent_address_line = this->pin;
+  this->persistent_address_offline = this->persistent_address_line + 60;
+  this->load_values();
   this->last_read = 0;
+  for(int i=0; i<10; i++) {
+    this->read();
+  }
 }
 
 int LineSensor::status() {
-  int mean = avg(last_reads, 10);
+  int mean = this->get_value();
   if(this->state == this->ON_LINE) {
-    if(mean < this->off_line_threshold) {
-      return this->OFF_LINE;
+    if(mean < this->offline_threshold) {
+      this->state = OFF_LINE;
     }
   } else {
     if(mean > this->line_threshold) {
-      return this->ON_LINE;
+      this->state = ON_LINE;
     }
   }
   return this->state;
 }
 
-void LineSensor::read() {
-  this->last_reads[this->last_read++ % 10] = analogRead(this->pin);
+void LineSensor::store_values() {
+  char text[250];
+  EEPROM.write(this->persistent_address_line, this->line_threshold / 4);
+  EEPROM.write(this->persistent_address_offline, this->offline_threshold / 4);
+  sprintf(text, "Stored - Line: %d Offline: %d", this->line_threshold, this->offline_threshold);
+  Serial.println(text);
 }
 
-int LineSensor::get_value() {
-  return avg(last_reads, 10);
+void LineSensor::load_values() {
+  char text[250];
+  int line = EEPROM.read(this->persistent_address_line) * 4;
+  int offline = EEPROM.read(this->persistent_address_offline) * 4;
+  sprintf(text, "Loaded - Line: %d Offline: %d", line, offline);
+  Serial.println(text);
+  this->line_threshold = line;
+  this->offline_threshold = offline;
 }
-
 
 void LineSensor::calibrate(int line, int offline) {
   int diff = line - offline;
   this->line_threshold = line - (diff / 3);
-  this->off_line_threshold = offline + (diff / 3);
-  this->calibrated = 1;
+  this->offline_threshold = offline + (diff / 3);
+  this->store_values();
 }
