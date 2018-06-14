@@ -299,6 +299,6 @@ void ControlUnit::set_pose_y(double y) {
 }
 
 void ControlUnit::set_pose_theta(double theta) {
-  this->pose_theta = theta;
+  this->pose_theta = (theta / (double)180) * PI;
 }
 
