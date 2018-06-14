@@ -6,7 +6,7 @@
 #define WHEEL_AXIS_WIDTH 16 //cm
 #define KP 0.2
 #define KD 0.1
-#define ADJUST_INTERVAL 200
+#define ADJUST_INTERVAL 100
 #define TICKS_PER_REVOLUTION 25
 
 long calculate_straight_line_ticks(double cm) {

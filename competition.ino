@@ -1,3 +1,10 @@
+#define INITIAL_STATE 0
+#define LOOKING_FOR_BLOCK 1
+#define RESCUING 2
+#define LOST 3
+
+int robot_state = INITIAL_STATE;
+
 void competition_loop() {
   unsigned long start;
   int side;
@@ -5,6 +12,7 @@ void competition_loop() {
   wait_for_start();
   start = millis();
   side = align_with_light();
+  set_initial_pose(side);
   
   control_unit->go(FORWARD);
   do {
@@ -28,9 +36,14 @@ void competition_loop() {
     follow_the_line();
     if(block_captured()) {
       handle_block();
+      break;
     }
   } while(millis() <= start + 60000);
   control_unit->stop();
+}
+
+void set_initial_pose(int side) {
+  control_unit->set_pose(0,0,0);
 }
 
 void wait_for_start() {
@@ -49,10 +62,13 @@ void handle_block() {
   byte color = rgb_sensor->identify_color();
   switch (color) {
     case rgb_sensor->RED:
+      take_block_to_base();
       break;
     case rgb_sensor->GREEN:
+      take_block_to_base();
       break;
     case rgb_sensor->BLUE:
+      take_block_to_base();
       break;
     case rgb_sensor->YELLOW:
       break;
@@ -64,6 +80,18 @@ void handle_block() {
     case rgb_sensor->NO_COLOR:
       break;
   } 
+}
+
+void take_block_to_base() {
+  int state;
+  do {
+    state = control_unit->spin_degrees(control_unit->RIGHT, 90);
+    update_sensors();
+  } while (state != control_unit->TRAGET_REACHED);
+  do {
+    state = control_unit->drive_straight(FORWARD, 70);
+    update_sensors();
+  } while(state != control_unit->TARGET_REACHED);
 }
 
 void reject_block() {
@@ -113,9 +141,19 @@ void follow_the_line() {
       control_unit->curve(control_unit->LEFT);
     } else {
       // ambos os sensores estão fora da linha
-      control_unit->spin(control_unit->RIGHT);
+      if(robot_state != LOST) {
+        print_position();
+        robot_state = LOST;
+      }
+      decide_where_to_go();
     }
   }
+}
+
+void print_position() {};
+
+void decide_where_to_go() {
+  control_unit->spin(control_unit->RIGHT);
 }
 
 

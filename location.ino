@@ -118,7 +118,7 @@ byte search_light() {
     print_light_sensor();
     l_value = light_sensor_l->get_value();
     r_value = light_sensor_r->get_value();
-  } while(abs(l_value - r_value) < 220);
+  } while(abs(l_value - r_value) < 230);
   control_unit->stop();
   if(l_value < r_value) {
     return control_unit->LEFT;
