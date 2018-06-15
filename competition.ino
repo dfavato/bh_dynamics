@@ -87,9 +87,9 @@ void take_block_to_base() {
   do {
     state = control_unit->spin_degrees(control_unit->RIGHT, 90);
     update_sensors();
-  } while (state != control_unit->TRAGET_REACHED);
+  } while (state != control_unit->TARGET_REACHED);
   do {
-    state = control_unit->drive_straight(FORWARD, 70);
+    state = control_unit->drive_straight(70);
     update_sensors();
   } while(state != control_unit->TARGET_REACHED);
 }
