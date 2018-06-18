@@ -18,6 +18,7 @@ RGBSensor::RGBSensor(int sensor_pin, int RGBleds_pins[]) {
   for(int i=0; i<10; i++) {
     this->read();
   }
+  turn_leds_off();
 }
 
 void RGBSensor::turn_leds_off() {

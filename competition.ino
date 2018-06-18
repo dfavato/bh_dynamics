@@ -2,18 +2,23 @@
 #define LOOKING_FOR_BLOCK 1
 #define RESCUING 2
 #define LOST 3
+#define REJECTING_BLOCK 4
 
+int block_count = 0;
 int robot_state = INITIAL_STATE;
 
 void competition_loop() {
   unsigned long start;
   int side;
-  digitalWrite(block_led, HIGH);
+  int state;
   wait_for_start();
   start = millis();
-  side = align_with_light();
+  side = align_with_light2();
   set_initial_pose(side);
-  
+
+  do {
+    state = control_unit->drive_straight(10);
+  } while (state != control_unit->TARGET_REACHED);
   control_unit->go(FORWARD);
   do {
     update_sensors();
@@ -25,25 +30,25 @@ void competition_loop() {
    do {
     update_sensors();
    } while(over_the_line());
-   control_unit->spin(control_unit->LEFT);
+   control_unit->curve(control_unit->LEFT);
    do {
     update_sensors();
    } while(!over_the_line());
   }
-
+  digitalWrite(block_led, HIGH);
   do {
     update_sensors();
     follow_the_line();
     if(block_captured()) {
       handle_block();
-      break;
+      if(block_count > 1) break;
     }
   } while(millis() <= start + 60000);
   control_unit->stop();
 }
 
 void set_initial_pose(int side) {
-  control_unit->set_pose(0,0,0);
+  control_unit->set_pose(0.0,0.0,0.0);
 }
 
 void wait_for_start() {
@@ -60,6 +65,7 @@ void wait_for_start() {
 
 void handle_block() {
   byte color = rgb_sensor->identify_color();
+  block_count++;
   switch (color) {
     case rgb_sensor->RED:
       take_block_to_base();
@@ -84,30 +90,68 @@ void handle_block() {
 
 void take_block_to_base() {
   int state;
-  do {
-    state = control_unit->spin_degrees(control_unit->RIGHT, 90);
-    update_sensors();
-  } while (state != control_unit->TARGET_REACHED);
-  do {
-    state = control_unit->drive_straight(70);
-    update_sensors();
-  } while(state != control_unit->TARGET_REACHED);
+  robot_state = RESCUING;
+  interface.set_lcd_text("Resgatando!", "");
+  interface.refresh_lcd(TRUE);
+
+  switch(block_count) {
+    case 1:
+      do {
+        state = control_unit->spin_degrees(control_unit->RIGHT, 90);
+        update_sensors();
+      } while (state != control_unit->TARGET_REACHED);
+      do {
+        state = control_unit->drive_straight(70);
+        update_sensors();
+      } while(state != control_unit->TARGET_REACHED);
+      control_unit->go(BACKWARD);
+      do {
+          state = control_unit->drive_straight(50, BACKWARD);
+          update_sensors();
+      } while(state != control_unit->TARGET_REACHED);
+      do {
+          state = control_unit->spin_degrees(control_unit->RIGHT, 180);
+          update_sensors();
+      } while(state != control_unit->TARGET_REACHED);
+      control_unit->go(FORWARD);
+      while(!over_the_line());
+      break;
+    case 2:
+      do {
+        state = control_unit->spin_degrees(control_unit->RIGHT, 90);
+        update_sensors();
+      } while (state != control_unit->TARGET_REACHED);
+      do {
+        state = control_unit->drive_straight(70);
+        update_sensors();
+      } while(state != control_unit->TARGET_REACHED);
+      break;
+  }
+  
 }
 
 void reject_block() {
   int state;
-  do {
-    state = control_unit->spin_degrees(control_unit->LEFT, 90);
-    update_sensors();
-  } while (state != control_unit->TARGET_REACHED);
-  do {
-    state = control_unit->drive_straight(15);
-    update_sensors();
-  } while(state != control_unit->TARGET_REACHED);
-  control_unit->go(BACKWARD);
-  do {
-    update_sensors();
-  } while(!over_the_line());
+  robot_state = REJECTING_BLOCK;
+
+  switch (block_count) {
+    case 1:
+      do {
+        state = control_unit->spin_degrees(control_unit->LEFT, 90);
+        update_sensors();
+      } while (state != control_unit->TARGET_REACHED);
+      do {
+        state = control_unit->drive_straight(15);
+        update_sensors();
+      } while(state != control_unit->TARGET_REACHED);
+      control_unit->go(BACKWARD);
+      do {
+        update_sensors();
+      } while(!over_the_line());
+      break;
+    case 2:
+      break;
+  }
 }
 
 bool start_light_off() {
@@ -122,12 +166,16 @@ void update_sensors() {
   control_unit->update_encoders();
   line_sensor_r->read();
   line_sensor_l->read();
+  update_light_sensor();
 }
 
 void follow_the_line() {
   int l_status = line_sensor_l->status();
   int r_status = line_sensor_r->status();
   if(r_status == line_sensor_r->ON_LINE) {
+    if(robot_state == LOST) {
+      robot_state = LOOKING_FOR_BLOCK;
+    }
     if(l_status == line_sensor_l->ON_LINE) {
       // os dois sensores estão sobre a linha
       control_unit->go(FORWARD);
@@ -138,6 +186,9 @@ void follow_the_line() {
   } else {
     if(l_status == line_sensor_l->ON_LINE) {
       // sensor da direita fora da linha
+      if(robot_state == LOST) {
+        robot_state == LOOKING_FOR_BLOCK;
+      }
       control_unit->curve(control_unit->LEFT);
     } else {
       // ambos os sensores estão fora da linha
@@ -150,10 +201,33 @@ void follow_the_line() {
   }
 }
 
-void print_position() {};
+void print_position() { 
+};
 
 void decide_where_to_go() {
-  control_unit->spin(control_unit->RIGHT);
+//  int state;
+//  int x, y, theta;
+//  x = (int)control_unit->get_pose_x();
+//  y = (int)control_unit->get_pose_y();
+//  theta = (int)control_unit->get_pose_theta();
+
+  control_unit->spin(control_unit->RIGHT);  
+
+//  if(x < 35 && y < -20) {
+//    do {
+//      state = control_unit->spin_degrees(control_unit->LEFT, 90);
+//    } while (state != control_unit->TARGET_REACHED);
+//    do {
+//      state = control_unit->drive_straight(10);
+//    } while (state != control_unit->TARGET_REACHED);
+//    do {
+//      state = control_unit->spin_degrees(control_unit->LEFT, 90);
+//    } while (state != control_unit->TARGET_REACHED);
+//    control_unit->go(FORWARD);
+//    while(!over_the_line());
+//  } else {
+//    control_unit->spin(control_unit->RIGHT);  
+//  }
 }
 
 

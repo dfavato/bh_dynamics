@@ -28,6 +28,10 @@ class ControlUnit {
   double pose_y; // posicao y do robo no campo
   double pose_theta; // angulo do robo
   void update_pose();
+  int action;
+  int direction;
+  int last_action;
+  int last_direction;
   
   public:
     // Constantes para ajudar nas funções
@@ -45,6 +49,7 @@ class ControlUnit {
     void spin(int side, int power);
     int spin_degrees(int side, int degree); // giro preciso
     int drive_straight(int cm); // anda em linha reta
+    drive_straight(int cm, int direction);
     long get_encoder_position(byte side); // pega a posição atual do encoder
     int get_motor_power(int side); // pega o valor atual da potência do motor
     void update_encoders(); // faz a leitura dos encoders

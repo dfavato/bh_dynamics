@@ -1,13 +1,18 @@
 #include "ControlUnit.h"
 #include "math.h"
 
-#define WHEEL_DIAMETER 52.8 //mm
+#define WHEEL_DIAMETER 49.28 //mm
 #define GEAR_RATIO 2.5
-#define WHEEL_AXIS_WIDTH 16 //cm
+#define WHEEL_AXIS_WIDTH 16.5 //cm
 #define KP 0.2
 #define KD 0.1
 #define ADJUST_INTERVAL 100
 #define TICKS_PER_REVOLUTION 25
+
+#define STOPPED 0
+#define GOING 1
+#define CURVING 2
+#define SPINNING 3
 
 long calculate_straight_line_ticks(double cm) {
   // cm * 10 -> distância em mm
@@ -47,30 +52,37 @@ ControlUnit::ControlUnit(int motors_pins[], int encoders_pins[]) {
   this->last_adjust = millis();
   this->last_pose_update = millis();
   this->set_pose(0,0,0);
+  this->action = STOPPED;
+  this->direction = FORWARD;
+  this->last_action = STOPPED;
+  this->last_direction = FORWARD;
 }
 
 void ControlUnit::stop() {
   this->motor[this->RIGHT]->setSpeed(0);
-  this->motor[this->RIGHT]->run(RELEASE);
+  this->motor[this->RIGHT]->run(BRAKE);
   this->motor[this->LEFT]->setSpeed(0);
-  this->motor[this->LEFT]->run(RELEASE);
+  this->motor[this->LEFT]->run(BRAKE);
+  this->action = STOPPED;
 }
 
 void ControlUnit::curve(int side) {
+  this->action = CURVING;
+  this->direction = side;
   if(side == this->RIGHT) {
     this->motor_power[this->LEFT] = MAX_POWER;
     this->motor_power[this->RIGHT] = 0;
     this->motor[this->LEFT]->setSpeed(this->motor_power[this->LEFT]);
     this->motor[this->LEFT]->run(FORWARD);
     this->motor[this->RIGHT]->setSpeed(this->motor_power[this->RIGHT]);
-    this->motor[this->RIGHT]->run(RELEASE);
+    this->motor[this->RIGHT]->run(BRAKE);
   } else {
     this->motor_power[this->RIGHT] = MAX_POWER;
     this->motor_power[this->LEFT] = 0;
     this->motor[this->RIGHT]->setSpeed(this->motor_power[this->RIGHT]);
     this->motor[this->RIGHT]->run(FORWARD);
     this->motor[this->LEFT]->setSpeed(this->motor_power[this->LEFT]);
-    this->motor[this->LEFT]->run(RELEASE);
+    this->motor[this->LEFT]->run(BRAKE);
   }
 }
 
@@ -79,6 +91,8 @@ void ControlUnit::go(int direction) {
 }
 
 void ControlUnit::go(int direction, int power) {
+  this->direction = direction;
+  this->action = GOING;
   this->motor_power[this->RIGHT] = power;
   this->motor_power[this->LEFT] = power;
   this->motor[this->LEFT]->setSpeed(this->motor_power[this->LEFT]);
@@ -92,6 +106,8 @@ void ControlUnit::spin(int side) {
 }
 
 void ControlUnit::spin(int side, int power) {
+  this->action = SPINNING;
+  this->direction = side;
   this->motor_power[this->RIGHT] = power;
   this->motor_power[this->LEFT] = power;
   this->motor[this->LEFT]->setSpeed(this->motor_power[this->LEFT]);
@@ -139,10 +155,12 @@ void ControlUnit::update_encoders() {
 
   this->encoder[this->RIGHT]->tick();
   this->encoder[this->LEFT]->tick();
-  
-  if(now > this->last_pose_update + ADJUST_INTERVAL) {
+
+  if(this->last_action != this->action || this->last_direction != this->direction) {
+    Serial.println("POSE UPDATED!");
     this->update_pose();
-    this->last_pose_update = now;
+    this->last_action = this->action;
+    this->last_direction = this->direction;
   }
 }
 
@@ -176,6 +194,26 @@ int ControlUnit::spin_degrees(int side, int degree) {
     this->spin(side, DEFAULT_POWER);
   }
 
+  this->update_encoders();
+  this->adjust_motor_power(); //sempre atualiza o state caso o objetivo seja alcançado
+  return this->state;
+}
+
+int ControlUnit::drive_straight(int cm, int direction) {
+  if(direction == FORWARD) this->drive_straight(cm);
+  long target;
+
+  // se o estado é TARGET_REACHED quer dizer que o robô já alcançou
+  // o último objetivo e podemos setar um novo
+  // caso o estado seja TARGET_NOT_REACHED então um novo objetivo
+  // não deve ser setado e deve-se seguir para o código de manutençao abaixo
+  if(this->state == TARGET_REACHED) {
+    target = calculate_straight_line_ticks(cm);
+    this->reset_encoders();
+    this->set_target(-target, -target);
+    this->go(BACKWARD, DEFAULT_POWER);
+  }
+  
   this->update_encoders();
   this->adjust_motor_power(); //sempre atualiza o state caso o objetivo seja alcançado
   return this->state;

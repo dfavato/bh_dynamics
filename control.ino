@@ -15,8 +15,8 @@ void control_loop() {
     delay(500);
     control_unit->set_pose(0,0,0);
 //    do_l();
-    test_line_follow_with_control();
-//    do_line(60);
+//    test_line_follow_with_control();
+    do_line(60);
 //    do_triangle(30);
 //    do_square(30);
     control_unit->stop();
@@ -94,7 +94,7 @@ void test_line_follow_with_control() {
 }
 
 void pause() {
-  unsigned long wait = 3000;
+  unsigned long wait = 10000;
   unsigned long now;
   control_unit->stop();
   now = millis();
@@ -165,26 +165,22 @@ void do_line(int size) {
     state = control_unit->drive_straight(size);
     print_encoder();
   } while (state != control_unit->TARGET_REACHED);
-  print_encoder();
-  delay(5000);
+  pause();
   do {
     state = control_unit->spin_degrees(control_unit->LEFT, 180);
     print_encoder();
   } while (state != control_unit->TARGET_REACHED);
-  print_encoder();
-  delay(5000);
+  pause();
   do {
     state = control_unit->drive_straight(size);
     print_encoder();
   } while (state != control_unit->TARGET_REACHED);
-  print_encoder();
-  delay(5000);
+  pause();
   do {
     state = control_unit->spin_degrees(control_unit->LEFT, 180);
     print_encoder();
   } while (state != control_unit->TARGET_REACHED);
-  print_encoder();
-  delay(5000);
+  pause();
 }
 
 void do_square(int side) {

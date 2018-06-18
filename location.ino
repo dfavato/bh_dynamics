@@ -29,6 +29,24 @@ void collect_data() {
   }
 }
 
+byte align_with_light2() {
+  int max_value = 0;
+  int tolerance = 10;
+  int current_value;
+  int state;
+  do {
+    state = control_unit->spin_degrees(control_unit->RIGHT, 360);
+    update_sensors();
+    current_value = abs(light_sensor_r->get_value() - light_sensor_l->get_value());
+    if(current_value > max_value) max_value = current_value;
+  } while (state != control_unit->TARGET_REACHED);
+  control_unit->spin(control_unit->LEFT);
+  do {
+    update_sensors();
+    current_value = abs(light_sensor_r->get_value() - light_sensor_l->get_value());
+  } while(current_value < max_value - tolerance);
+}
+
 byte align_with_light() {
   byte side;
   int max_value;
