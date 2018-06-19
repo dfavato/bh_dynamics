@@ -29,103 +29,28 @@ void collect_data() {
   }
 }
 
-byte align_with_light2() {
+byte align_with_light() {
   int max_value = 0;
   int tolerance = 10;
   int current_value;
   int state;
   do {
-    state = control_unit->spin_degrees(control_unit->RIGHT, 360);
+    state = control_unit->spin_degrees(control_unit->RIGHT, 450);
     update_sensors();
     current_value = abs(light_sensor_r->get_value() - light_sensor_l->get_value());
     if(current_value > max_value) max_value = current_value;
   } while (state != control_unit->TARGET_REACHED);
+  control_unit->set_pose_theta(0);
   control_unit->spin(control_unit->LEFT);
   do {
     update_sensors();
     current_value = abs(light_sensor_r->get_value() - light_sensor_l->get_value());
-  } while(current_value < max_value - tolerance);
-}
-
-byte align_with_light() {
-  byte side;
-  int max_value;
-  int diff;
-  int last_value;
-  int r_value, l_value;
-  int tolerance = 3;
-  int decrease_counter = 0;
-  int increase_counter = 0;
-  int increasing = FALSE;
-  unsigned long read_interval = 100;
-  unsigned long last_read;
-
-  Serial.print("max");
-  Serial.print("\t");
-  Serial.print("last");
-  Serial.print("\t");
-  Serial.print("value");
-  Serial.print("\t");
-  Serial.print("dec.");
-  Serial.print("\t");
-  Serial.println("inc.");
-
-  side = search_light();
-  
-  r_value = light_sensor_r->get_value();
-  l_value = light_sensor_l->get_value();
-  max_value = abs(r_value - l_value);
-  last_value = max_value;
-  control_unit->spin(control_unit->RIGHT, MIN_POWER);
-
-  last_read = millis();
-  do {
-    update_light_sensor();
-    if(millis() > last_read + read_interval) {
-      r_value = light_sensor_r->get_value();
-      l_value = light_sensor_l->get_value();
-      if(side == control_unit->RIGHT) {
-        diff = l_value - r_value;
-      } else {
-        diff = r_value - l_value;
-      }
-      last_read = millis();
-      print_light_sensor();
-      
-      Serial.print(max_value, DEC);
-      Serial.print("\t");
-      Serial.print(last_value, DEC);
-      Serial.print("\t");
-      Serial.print(diff, DEC);
-      if(diff > last_value + tolerance) {
-        increasing = TRUE; // aproximando da luz
-        increase_counter++;
-        last_value = diff;
-      } else if (diff < last_value - tolerance) {
-        //afastando da luz
-        if(increasing && increase_counter >= 0) {
-          break;
-        }
-        decrease_counter++;
-        last_value = diff;
-      }
-      Serial.print("\t");
-      Serial.print(decrease_counter, DEC);
-      Serial.print("\t");
-      Serial.println(increase_counter, DEC);
-      if(decrease_counter > 10 || diff < 200) {
-        control_unit->spin(control_unit->LEFT, MIN_POWER);
-        increase_counter -= decrease_counter;
-        decrease_counter = 0;
-      }
-      if(diff > max_value) {
-        max_value = diff;
-      }
+    if(control_unit->get_pose_theta() > 360) {
+      control_unit->set_pose_theta(0);
+      tolerance += 10;
     }
-  } while(1);
-  Serial.println();
+  } while(current_value < max_value - tolerance);
   control_unit->stop();
-  return side;
 }
 
 byte search_light() {

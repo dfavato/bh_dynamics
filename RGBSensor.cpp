@@ -183,9 +183,12 @@ byte RGBSensor::identify_color() {
     }
   } else {
     // não é uma escala de cinza
-    if(max_value < 30) return this->BLACK;
-    if(max_color == this->BLUE) return this->BLUE;
+    if(max_color == this->BLUE) {
+      if(max_value < 30) return this->BLACK;
+      return this->BLUE;
+    }
     if(max_color == this->RED) {
+      if(max_value < 50) return this->BLACK;
       // vermelho ou amarelo
       if(((float) g / (float) r) > 0.5) {
         return this->YELLOW;
@@ -194,6 +197,7 @@ byte RGBSensor::identify_color() {
       }
     }
     if(max_color == this->GREEN) {
+      if(max_value < 30) return this->BLACK;
       // verde ou amarelo
       if(((float) r / (float) g) > 0.5) {
         return this->YELLOW;

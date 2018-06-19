@@ -5,7 +5,7 @@
 #include <RotaryEncoder.h>
 
 #define MIN_POWER 100
-#define MAX_POWER 250
+#define MAX_POWER 200
 #define DEFAULT_POWER 200
 
 class ControlUnit {
