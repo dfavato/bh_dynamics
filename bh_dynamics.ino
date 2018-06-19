@@ -23,6 +23,12 @@
 #define BLOCK_LED_PIN 23
 #define START_SENSOR_PIN 35
 
+// Mudança
+#define LINE_SENSOR_RR 11
+#define LINE_SENSOR_LL 15
+LineSensor *line_sensor_rr;
+LineSensor *line_sensor_ll;
+
 Interface interface = Interface();
 LineSensor *line_sensor_r;
 LineSensor *line_sensor_l;
@@ -102,6 +108,11 @@ void initialize_sensors() {
   light_sensor_l = new GenericSensor(POLAR_LIGHT_SENSOR_L, 0);
   line_sensor_r = new LineSensor(LINE_SENSOR_R);
   line_sensor_l = new LineSensor(LINE_SENSOR_L);
+  //mudança
+  
+  line_sensor_rr = new LineSensor(LINE_SENSOR_RR);
+  line_sensor_ll = new LineSensor(LINE_SENSOR_LL);
+  
   rgb_sensor = new RGBSensor(RGBSENSOR_PIN, rgbleds_pins);
   block_sensor = new GenericSensor(BLOCK_SENSOR_PIN, 1);
   start_sensor = new GenericSensor(START_SENSOR_PIN, 1);

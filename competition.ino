@@ -38,7 +38,7 @@ void competition_loop() {
   digitalWrite(block_led, HIGH);
   do {
     update_sensors();
-    follow_the_line();
+    follow_the_line_four();
     if(block_captured()) {
       handle_block();
       if(block_count > 1) break;
@@ -61,7 +61,52 @@ void wait_for_start() {
   }
   interface.set_lcd_text("Vamo time!", "");
   interface.refresh_lcd(TRUE);
+
+
+void follow_the_line_four(){
+  int ll_status = line_sensor_ll->status();
+  int rr_status = line_sensor_rr->status();
+  int l_status = line_sensor_l->status();
+  int r_status = line_sensor_r->status(); 
+  if(rr_status == line_sensor_rr->ON_LINE) {
+    if(ll_status == line_sensor_ll->ON_LINE) {
+      // os dois sensores extremos estão sobre a linha
+      decide_where_to_go();
+    } else {
+      // sensor da esquerda fora da linha
+      //control_unit->curve(control_unit->RIGHT);
+      //curve_right() - curva até o sernsor_r ou senror_l on_line
+      int state;
+        do {
+      state = control_unit->spin_degrees(control_unit->RIGHT, 100);
+      //print_encoder();
+    } while (state != control_unit->TARGET_REACHED);
+      do {
+      //update line sensor
+      control_unit->curve(control_unit->LEFT);
+    } while (l_status != line_sensor_l->ON_LINE && r_status != line_sensor_r->ON_LINE);
+      
+    }
+  } else {
+    if(ll_status == line_sensor_ll->ON_LINE) {
+      // sensor da direita fora da linha
+      //control_unit->curve(control_unit->LEFT);
+       int state;
+        do {
+      state = control_unit->spin_degrees(control_unit->LEFT, 100);
+      //print_encoder();
+    } while (state != control_unit->TARGET_REACHED);
+      do {
+      //update line sensor
+      control_unit->curve(control_unit->RIGHT);
+    } while (l_status != line_sensor_l->ON_LINE && r_status != line_sensor_r->ON_LINE);
+      
+    }
+      // ambos os sensores estão fora da linha    
+  }
+  follow_line()
 }
+
 
 void handle_block() {
   byte color = rgb_sensor->identify_color();
