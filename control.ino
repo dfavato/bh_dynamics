@@ -94,7 +94,7 @@ void test_line_follow_with_control() {
 }
 
 void pause() {
-  unsigned long wait = 10000;
+  unsigned long wait = 5000;
   unsigned long now;
   control_unit->stop();
   now = millis();
