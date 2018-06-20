@@ -86,6 +86,26 @@ void ControlUnit::curve(int side) {
   }
 }
 
+void ControlUnit::curve(int side, int direction) {
+  this->action = CURVING;
+  this->direction = side;
+  if(side == this->RIGHT) {
+    this->motor_power[this->LEFT] = 0;
+    this->motor_power[this->RIGHT] = MAX_POWER;
+    this->motor[this->LEFT]->setSpeed(this->motor_power[this->LEFT]);
+    this->motor[this->LEFT]->run(BRAKE);
+    this->motor[this->RIGHT]->setSpeed(this->motor_power[this->RIGHT]);
+    this->motor[this->RIGHT]->run(BACKWARD);
+  } else {
+    this->motor_power[this->RIGHT] = 0;
+    this->motor_power[this->LEFT] = MAX_POWER;
+    this->motor[this->RIGHT]->setSpeed(this->motor_power[this->RIGHT]);
+    this->motor[this->RIGHT]->run(BRAKE);
+    this->motor[this->LEFT]->setSpeed(this->motor_power[this->LEFT]);
+    this->motor[this->LEFT]->run(BACKWARD);
+  }
+}
+
 void ControlUnit::go(int direction) {
   this->go(direction, DEFAULT_POWER);
 }

@@ -35,7 +35,7 @@ byte align_with_light() {
   int current_value;
   int state;
   do {
-    state = control_unit->spin_degrees(control_unit->RIGHT, 450);
+    state = control_unit->spin_degrees(control_unit->RIGHT, 400);
     update_sensors();
     current_value = abs(light_sensor_r->get_value() - light_sensor_l->get_value());
     if(current_value > max_value) max_value = current_value;

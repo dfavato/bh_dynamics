@@ -45,6 +45,7 @@ class ControlUnit {
     void go(int direction, int power); // FORWARD ou BACKWARD com a mesma potência em ambos motores
     void go(int direction); // FORWARD ou BACKWARD com uma potência default
     void curve(int side); // Uma roda parada enquanto a outra movimenta para frente
+    void ControlUnit::curve(int side, int backward); // Uma roda parada enquanto a outra movimenta para tras
     void spin(int side); // uma roda para frente outra para trás
     void spin(int side, int power);
     int spin_degrees(int side, int degree); // giro preciso

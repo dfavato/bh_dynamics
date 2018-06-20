@@ -7,16 +7,19 @@
 int block_count;
 int robot_state = INITIAL_STATE;
 int side_to_turn;
+unsigned long start;
+bool recovered_from_trap;
 
 void competition_loop() {
-  unsigned long start;
-  int side, state;
+  int state;
   char text[50];
+  
   
   wait_for_start();
   start = millis();
   align_with_light();
   
+  recovered_from_trap = FALSE;
   side_to_turn = control_unit->RIGHT;
   set_initial_pose();
   block_count = 0;
@@ -24,22 +27,23 @@ void competition_loop() {
 
   do {
     state = control_unit->drive_straight(10);
-  } while (state != control_unit->TARGET_REACHED);
+    update_sensors();
+  } while (state != control_unit->TARGET_REACHED && !time_over());
   control_unit->go(FORWARD);
   do {
     update_sensors();
-  } while(!over_the_line());
+  } while(!over_the_line() && !time_over());
   control_unit->stop();
 
   if(line_sensor_l->status() == line_sensor_l->ON_LINE) {
    control_unit->go(FORWARD);
    do {
     update_sensors();
-   } while(over_the_line());
+   } while(over_the_line() && !time_over());
    control_unit->curve(control_unit->LEFT);
    do {
     update_sensors();
-   } while(!over_the_line());
+   } while(!over_the_line() && !time_over());
   }
   digitalWrite(block_led, HIGH);
   do {
@@ -52,7 +56,7 @@ void competition_loop() {
       handle_block();
       if(block_count > 3) break;
     }
-  } while(millis() <= start + 60000);
+  } while(!time_over());
   control_unit->stop();
   interface.set_lcd_text("FIM!", 1);
   interface.refresh_lcd(TRUE);
@@ -78,9 +82,12 @@ void wait_for_start() {
 
 void handle_block() {
   byte color;
+  unsigned long timer = millis();
 
   control_unit->go(FORWARD);
-  delay(500);
+  do {
+    update_sensors();
+  } while(millis() < timer + 500);
   control_unit->stop();
   if(block_captured()) {
     color = rgb_sensor->identify_color();
@@ -99,21 +106,19 @@ void handle_block() {
       take_block_to_base();
       break;
     case rgb_sensor->YELLOW:
-      control_unit->go(FORWARD);
-      delay(500);
       break;
     case rgb_sensor->BLACK:
       reject_block();
       break;
     case rgb_sensor->WHITE:
-      control_unit->go(FORWARD);
-      delay(500);
       break;
     case rgb_sensor->NO_COLOR:
-      control_unit->go(FORWARD);
-      delay(500);
       break;
   } 
+}
+
+bool time_over() {
+  return millis() > start + 60000;
 }
 
 void take_block_to_base() {
@@ -122,121 +127,134 @@ void take_block_to_base() {
   interface.set_lcd_text("Resgatando!", "");
   interface.refresh_lcd(TRUE);
 
+  recovered_from_trap = TRUE;
   block_count++;
   switch(block_count) {
     case 1:
       do {
         state = control_unit->spin_degrees(control_unit->RIGHT, 110);
         update_sensors();
-      } while (state != control_unit->TARGET_REACHED);
+      } while (state != control_unit->TARGET_REACHED && !time_over());
       do {
-        state = control_unit->drive_straight(75);
+        state = control_unit->drive_straight(55);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       control_unit->go(BACKWARD);
       do {
-          state = control_unit->drive_straight(50, BACKWARD);
+          state = control_unit->drive_straight(40, BACKWARD);
           update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       do {
           state = control_unit->spin_degrees(control_unit->RIGHT, 180);
           update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       control_unit->go(FORWARD);
-      while(!over_the_line());
+      while(!over_the_line() && !time_over());
       break;
     case 2:
       do {
-        state = control_unit->spin_degrees(control_unit->RIGHT, 90);
+        state = control_unit->spin_degrees(control_unit->RIGHT, 100);
         update_sensors();
-      } while (state != control_unit->TARGET_REACHED);
+      } while (state != control_unit->TARGET_REACHED && !time_over());
       do {
         state = control_unit->drive_straight(70);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
+      do {
+        state = control_unit->drive_straight(60, BACKWARD);
+        update_sensors();
+      } while(state != control_unit->TARGET_REACHED && !time_over());
+      do {
+        state = control_unit->spin_degrees(control_unit->RIGHT, 180);
+        update_sensors();
+      } while(state != control_unit->TARGET_REACHED && !time_over());
+      control_unit->go(FORWARD);
+      while(!over_the_line() && !time_over());
+      side_to_turn = control_unit->LEFT;
       break;
     case 3:
       do {
         state = control_unit->spin_degrees(control_unit->RIGHT, 250);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       do {
         state = control_unit->drive_straight(75);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       control_unit->go(BACKWARD);
       do {
           state = control_unit->drive_straight(50, BACKWARD);
           update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       do {
           state = control_unit->spin_degrees(control_unit->RIGHT, 180);
           update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       control_unit->go(FORWARD);
-      while(!over_the_line());
+      while(!over_the_line() && !time_over());
       break;
     case 4:
       do {
         state = control_unit->spin_degrees(control_unit->RIGHT, 270);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       do {
         state = control_unit->drive_straight(70);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       break;
   }
-  
 }
 
 void reject_block() {
   int state;
   robot_state = REJECTING_BLOCK;
 
+  recovered_from_trap = TRUE;
   block_count++;
   switch (block_count) {
     case 1:
       do {
         state = control_unit->spin_degrees(control_unit->RIGHT, 270);
         update_sensors();
-      } while (state != control_unit->TARGET_REACHED);
+      } while (state != control_unit->TARGET_REACHED && !time_over());
       do {
         state = control_unit->drive_straight(15);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       control_unit->go(BACKWARD);
       do {
         update_sensors();
-      } while(!over_the_line());
+      } while(!over_the_line() && !time_over());
       break;
     case 2:
       do {
         state = control_unit->drive_straight(15, BACKWARD);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       do {
         state = control_unit->spin_degrees(control_unit->LEFT, 150);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       control_unit->spin(control_unit->LEFT);
       do {
-      } while(!over_the_line());
+        update_sensors();
+      } while(!over_the_line() && !time_over());
       side_to_turn = control_unit->LEFT;
       break;
     case 3:
       do {
         state = control_unit->spin_degrees(control_unit->RIGHT, 90);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       do {
         state = control_unit->drive_straight(15);
         update_sensors();
-      } while(state != control_unit->TARGET_REACHED);
+      } while(state != control_unit->TARGET_REACHED && !time_over());
       control_unit->go(BACKWARD);
       do {
         update_sensors();
-      } while(!over_the_line());
+      } while(!over_the_line() && !time_over());
       break;
     case 4:
       break;
@@ -249,6 +267,10 @@ bool start_light_off() {
 
 bool over_the_line() {
   return (line_sensor_l->status() == line_sensor_l->ON_LINE) || (line_sensor_r->status() == line_sensor_r->ON_LINE);
+}
+
+bool over_the_line(bool both) {
+  return (line_sensor_l->status() == line_sensor_l->ON_LINE) && (line_sensor_r->status() == line_sensor_r->ON_LINE);
 }
 
 void update_sensors() {
@@ -282,7 +304,7 @@ void follow_the_line() {
     } else {
       // ambos os sensores estão fora da linha
       if(robot_state != LOST) {
-        print_position();
+        pause();
         robot_state = LOST;
       }
       decide_where_to_go();
@@ -294,7 +316,35 @@ void print_position() {
 };
 
 void decide_where_to_go() {
-  control_unit->spin(side_to_turn);  
+  int x = (int)control_unit->get_pose_x();
+  int y = (int)control_unit->get_pose_y();
+  int theta = (int)control_unit->get_pose_theta();
+  if((x < 40 && y < -5 && (theta > -120 && theta < -60)) && !recovered_from_trap) {
+    recover_from_trap();
+  }
+  control_unit->spin(side_to_turn);
+  do {
+    update_sensors();
+  } while(!over_the_line(TRUE) && !time_over());
+  do {
+    update_sensors();
+  } while(over_the_line(TRUE) && !time_over());
 }
 
+void recover_from_trap() {
+  int state;
+  do {
+    state = control_unit->spin_degrees(control_unit->LEFT, 150);
+    update_sensors();
+  } while(state != control_unit->TARGET_REACHED && !time_over());
+  do {
+    state = control_unit->drive_straight(10);
+    update_sensors();
+  } while(state != control_unit->TARGET_REACHED && !time_over());
+  control_unit->go(FORWARD);
+  do {
+    update_sensors();
+  } while(!over_the_line() && !time_over);
+  recovered_from_trap = TRUE;
+}
 
