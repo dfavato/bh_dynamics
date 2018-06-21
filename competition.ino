@@ -108,6 +108,7 @@ void handle_block() {
       take_block_to_base();
       break;
     case rgb_sensor->YELLOW:
+      take_block_to_base();
       break;
     case rgb_sensor->BLACK:
       reject_block();
@@ -172,7 +173,9 @@ void take_block_to_base() {
         update_sensors();
       } while(state != control_unit->TARGET_REACHED && !time_over());
       control_unit->go(FORWARD);
-      while(!over_the_line() && !time_over());
+      do {
+        update_sensors();
+      } while(!over_the_line() && !time_over());
       side_to_turn = control_unit->LEFT;
       break;
     case 3:
@@ -194,7 +197,9 @@ void take_block_to_base() {
           update_sensors();
       } while(state != control_unit->TARGET_REACHED && !time_over());
       control_unit->go(FORWARD);
-      while(!over_the_line() && !time_over());
+      do {
+        update_sensors();
+      } while(!over_the_line() && !time_over());
       break;
     case 4:
       if(rejected_blocks >= 2) {
